@@ -3,6 +3,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 
 const env = require('./config/env');
+const connectDB = require('./db');
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.get('/health', (req, res) => {
     message: 'TaskBot backend activo',
     environment: env.nodeEnv,
     timezone: env.timezone,
+    database: 'connected',
   });
 });
 
@@ -26,9 +28,15 @@ app.use((req, res) => {
   });
 });
 
-app.listen(env.port, () => {
-  console.log(`Servidor ejecutándose en ${env.appUrl}`);
-  console.log(`Puerto: ${env.port}`);
-  console.log(`Entorno: ${env.nodeEnv}`);
-  console.log(`Zona horaria: ${env.timezone}`);
-});
+const startServer = async () => {
+  await connectDB();
+
+  app.listen(env.port, () => {
+    console.log(`Servidor ejecutándose en ${env.appUrl}`);
+    console.log(`Puerto: ${env.port}`);
+    console.log(`Entorno: ${env.nodeEnv}`);
+    console.log(`Zona horaria: ${env.timezone}`);
+  });
+};
+
+startServer();
