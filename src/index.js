@@ -4,6 +4,7 @@ const morgan = require('morgan');
 
 const env = require('./config/env');
 const connectDB = require('./db');
+const taskRoutes = require('./routes/taskRoutes');
 
 const app = express();
 
@@ -20,6 +21,8 @@ app.get('/health', (req, res) => {
     database: 'connected',
   });
 });
+
+app.use('/api/tasks', taskRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
