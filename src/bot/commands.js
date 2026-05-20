@@ -1,13 +1,20 @@
 const taskService = require('../services/taskService');
 const { showMainMenu } = require('./menu');
+
 const {
   getPendingTasks,
   getTodayTasks,
   getOverdueTasks,
   showTaskList,
-  formatDate,
-  getTelegramUserId
+  getTelegramUserId,
 } = require('./actions');
+
+const {
+  formatTaskCreated,
+  formatTaskDetail,
+  formatTaskCompleted,
+  formatTaskDeleted,
+} = require('../utils/messageUtils');
 
 const helpMessage = [
   '❓ Ayuda de TaskBot',
@@ -17,26 +24,22 @@ const helpMessage = [
   '/start - Iniciar el bot',
   '/help - Mostrar ayuda',
   '/menu - Mostrar menú principal',
-  '/agregar título de la tarea - Crear una tarea',
+  '/agregar título de la tarea - Crear una tarea rápida',
   '/listar - Listar tareas pendientes',
   '/hoy - Ver tareas de hoy',
   '/vencidas - Ver tareas vencidas',
-  '/ver ID - Ver detalle de una tarea',
-  '/hecho ID - Marcar tarea como completada',
-  '/eliminar ID - Eliminar tarea',
   '',
-  'Ejemplos:',
+  'También puedes usar el menú con botones para completar o eliminar tareas sin copiar identificadores.',
+  '',
+  'Ejemplo:',
   '/agregar estudiar MongoDB',
-  '/listar',
-  '/ver 664a1234567890abcdef1234',
-  '/hecho 664a1234567890abcdef1234'
 ].join('\n');
 
 const createTask = async ({ telegramUserId, title }) => {
   if (typeof taskService.createTask === 'function') {
     return taskService.createTask({
       telegramUserId,
-      title
+      title,
     });
   }
 
@@ -90,7 +93,7 @@ const registerCommands = (bot) => {
         'Te ayudaré a gestionar tus tareas desde Telegram.',
         '',
         'Usa /menu para ver las opciones principales.',
-        'Usa /help para ver los comandos disponibles.'
+        'Usa /help para ver los comandos disponibles.',
       ].join('\n')
     );
   });
@@ -114,7 +117,7 @@ const registerCommands = (bot) => {
             '⚠️ Debes escribir el título de la tarea.',
             '',
             'Ejemplo:',
-            '/agregar estudiar redes'
+            '/agregar estudiar redes',
           ].join('\n')
         );
         return;
@@ -122,17 +125,10 @@ const registerCommands = (bot) => {
 
       const task = await createTask({
         telegramUserId,
-        title: text
+        title: text,
       });
 
-      await ctx.reply(
-        [
-          '✅ Tarea registrada correctamente.',
-          '',
-          `Título: ${task.title}`,
-          `ID: ${task._id}`
-        ].join('\n')
-      );
+      await ctx.reply(formatTaskCreated(task));
     } catch (error) {
       console.error('Error al crear tarea desde Telegram:', error);
       await ctx.reply('❌ Ocurrió un error al crear la tarea.');
@@ -195,10 +191,10 @@ const registerCommands = (bot) => {
       if (!id) {
         await ctx.reply(
           [
-            '⚠️ Debes enviar el ID de la tarea.',
+            '⚠️ Debes indicar la tarea que deseas consultar.',
             '',
-            'Ejemplo:',
-            '/ver 664a1234567890abcdef1234'
+            'Por ahora este comando requiere un identificador técnico.',
+            'Más adelante lo mejoraremos con selección por botones.',
           ].join('\n')
         );
         return;
@@ -207,23 +203,11 @@ const registerCommands = (bot) => {
       const task = await getTaskById(id, telegramUserId);
 
       if (!task) {
-        await ctx.reply('⚠️ No encontré una tarea con ese ID.');
+        await ctx.reply('⚠️ No encontré esa tarea.');
         return;
       }
 
-      await ctx.reply(
-        [
-          '🔎 Detalle de tarea',
-          '',
-          `ID: ${task._id}`,
-          `Título: ${task.title}`,
-          `Descripción: ${task.description || 'Sin descripción'}`,
-          `Estado: ${task.status}`,
-          `Fecha: ${formatDate(task.dueDate)}`,
-          `Recordatorio enviado: ${task.reminderSent ? 'Sí' : 'No'}`,
-          `Completada en: ${formatDate(task.completedAt)}`
-        ].join('\n')
-      );
+      await ctx.reply(formatTaskDetail(task));
     } catch (error) {
       console.error('Error al ver detalle de tarea desde Telegram:', error);
       await ctx.reply('❌ Ocurrió un error al consultar la tarea.');
@@ -238,10 +222,12 @@ const registerCommands = (bot) => {
       if (!id) {
         await ctx.reply(
           [
-            '⚠️ Debes enviar el ID de la tarea.',
+            '⚠️ Para completar una tarea sin copiar identificadores, usa:',
             '',
-            'Ejemplo:',
-            '/hecho 664a1234567890abcdef1234'
+            '/menu',
+            '',
+            'Luego toca el botón:',
+            '✅ Completar tarea',
           ].join('\n')
         );
         return;
@@ -250,19 +236,11 @@ const registerCommands = (bot) => {
       const task = await completeTask(id, telegramUserId);
 
       if (!task) {
-        await ctx.reply('⚠️ No encontré una tarea pendiente con ese ID.');
+        await ctx.reply('⚠️ No encontré esa tarea o ya no está pendiente.');
         return;
       }
 
-      await ctx.reply(
-        [
-          '✅ Tarea completada correctamente.',
-          '',
-          `Título: ${task.title}`,
-          `Estado: ${task.status}`,
-          `Completada en: ${formatDate(task.completedAt)}`
-        ].join('\n')
-      );
+      await ctx.reply(formatTaskCompleted(task));
     } catch (error) {
       console.error('Error al completar tarea desde Telegram:', error);
       await ctx.reply('❌ Ocurrió un error al completar la tarea.');
@@ -277,10 +255,12 @@ const registerCommands = (bot) => {
       if (!id) {
         await ctx.reply(
           [
-            '⚠️ Debes enviar el ID de la tarea.',
+            '⚠️ Para eliminar una tarea sin copiar identificadores, usa:',
             '',
-            'Ejemplo:',
-            '/eliminar 664a1234567890abcdef1234'
+            '/menu',
+            '',
+            'Luego toca el botón:',
+            '🗑️ Eliminar tarea',
           ].join('\n')
         );
         return;
@@ -289,18 +269,11 @@ const registerCommands = (bot) => {
       const task = await deleteTask(id, telegramUserId);
 
       if (!task) {
-        await ctx.reply('⚠️ No encontré una tarea con ese ID.');
+        await ctx.reply('⚠️ No encontré esa tarea.');
         return;
       }
 
-      await ctx.reply(
-        [
-          '🗑️ Tarea eliminada correctamente.',
-          '',
-          `Título: ${task.title}`,
-          `Estado: ${task.status}`
-        ].join('\n')
-      );
+      await ctx.reply(formatTaskDeleted(task));
     } catch (error) {
       console.error('Error al eliminar tarea desde Telegram:', error);
       await ctx.reply('❌ Ocurrió un error al eliminar la tarea.');
@@ -313,12 +286,12 @@ const registerCommands = (bot) => {
         'No reconozco ese comando.',
         '',
         'Usa /menu para ver las opciones disponibles.',
-        'Usa /help para ver la ayuda.'
+        'Usa /help para ver la ayuda.',
       ].join('\n')
     );
   });
 };
 
 module.exports = {
-  registerCommands
+  registerCommands,
 };
