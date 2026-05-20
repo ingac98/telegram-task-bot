@@ -1,21 +1,45 @@
+const TIMEZONE = process.env.TIMEZONE || 'America/Lima';
+
 const formatDate = (date) => {
-  if (!date) return null;
+  if (!date) {
+    return 'Sin fecha';
+  }
 
   return new Date(date).toLocaleString('es-PE', {
-    timeZone: process.env.TIMEZONE || 'America/Lima',
-    dateStyle: 'short',
-    timeStyle: 'short',
+    timeZone: TIMEZONE,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
   });
+};
+
+const formatOptionalDate = (date) => {
+  if (!date) {
+    return null;
+  }
+
+  return formatDate(date);
 };
 
 const formatStatus = (status) => {
   const statusMap = {
-    pendiente: 'Pendiente',
-    completada: 'Completada',
-    eliminada: 'Eliminada',
+    pendiente: 'pendiente',
+    completada: 'completada',
+    eliminada: 'eliminada',
   };
 
-  return statusMap[status] || status || 'Sin estado';
+  return statusMap[status] || 'pendiente';
+};
+
+const formatDescription = (description) => {
+  if (!description || !description.trim()) {
+    return null;
+  }
+
+  return description.trim();
 };
 
 const formatTaskSummary = (task, index = null) => {
@@ -28,21 +52,21 @@ const formatTaskSummary = (task, index = null) => {
   }
 
   lines.push(`Estado: ${formatStatus(task.status)}`);
+  lines.push(`Fecha: ${formatDate(task.dueDate)}`);
 
-  const formattedDate = formatDate(task.dueDate);
-  if (formattedDate) {
-    lines.push(`Fecha: ${formattedDate}`);
-  }
+  const description = formatDescription(task.description);
 
-  if (task.description) {
-    lines.push(`Descripción: ${task.description}`);
+  if (description) {
+    lines.push(`Descripción: ${description}`);
   }
 
   return lines.join('\n');
 };
 
 const formatTaskList = (tasks) => {
-  return tasks.map((task, index) => formatTaskSummary(task, index)).join('\n\n');
+  return tasks
+    .map((task, index) => formatTaskSummary(task, index))
+    .join('\n\n');
 };
 
 const formatTaskCreated = (task) => {
@@ -51,15 +75,13 @@ const formatTaskCreated = (task) => {
     '',
     `📝 ${task.title}`,
     `Estado: ${formatStatus(task.status)}`,
+    `Fecha: ${formatDate(task.dueDate)}`,
   ];
 
-  const formattedDate = formatDate(task.dueDate);
-  if (formattedDate) {
-    lines.push(`Fecha: ${formattedDate}`);
-  }
+  const description = formatDescription(task.description);
 
-  if (task.description) {
-    lines.push(`Descripción: ${task.description}`);
+  if (description) {
+    lines.push(`Descripción: ${description}`);
   }
 
   return lines.join('\n');
@@ -71,20 +93,19 @@ const formatTaskDetail = (task) => {
     '',
     `📝 ${task.title}`,
     `Estado: ${formatStatus(task.status)}`,
+    `Fecha: ${formatDate(task.dueDate)}`,
   ];
 
-  const formattedDate = formatDate(task.dueDate);
-  if (formattedDate) {
-    lines.push(`Fecha: ${formattedDate}`);
-  }
+  const description = formatDescription(task.description);
 
-  if (task.description) {
-    lines.push(`Descripción: ${task.description}`);
+  if (description) {
+    lines.push(`Descripción: ${description}`);
   }
 
   lines.push(`Recordatorio enviado: ${task.reminderSent ? 'Sí' : 'No'}`);
 
-  const completedAt = formatDate(task.completedAt);
+  const completedAt = formatOptionalDate(task.completedAt);
+
   if (completedAt) {
     lines.push(`Completada en: ${completedAt}`);
   }
@@ -98,9 +119,11 @@ const formatTaskCompleted = (task) => {
     '',
     `📝 ${task.title}`,
     `Estado: ${formatStatus(task.status)}`,
+    `Fecha: ${formatDate(task.dueDate)}`,
   ];
 
-  const completedAt = formatDate(task.completedAt);
+  const completedAt = formatOptionalDate(task.completedAt);
+
   if (completedAt) {
     lines.push(`Completada en: ${completedAt}`);
   }
@@ -114,6 +137,7 @@ const formatTaskDeleted = (task) => {
     '',
     `📝 ${task.title}`,
     `Estado: ${formatStatus(task.status)}`,
+    `Fecha: ${formatDate(task.dueDate)}`,
   ].join('\n');
 };
 
@@ -122,15 +146,14 @@ const formatDeleteConfirmation = (task) => {
     '⚠️ Confirmar eliminación',
     '',
     `📝 ${task.title}`,
+    `Estado: ${formatStatus(task.status)}`,
+    `Fecha: ${formatDate(task.dueDate)}`,
   ];
 
-  const formattedDate = formatDate(task.dueDate);
-  if (formattedDate) {
-    lines.push(`Fecha: ${formattedDate}`);
-  }
+  const description = formatDescription(task.description);
 
-  if (task.description) {
-    lines.push(`Descripción: ${task.description}`);
+  if (description) {
+    lines.push(`Descripción: ${description}`);
   }
 
   lines.push('');
@@ -140,7 +163,9 @@ const formatDeleteConfirmation = (task) => {
 };
 
 const truncateButtonText = (text, maxLength = 35) => {
-  if (!text) return 'Sin título';
+  if (!text) {
+    return 'Sin título';
+  }
 
   if (text.length <= maxLength) {
     return text;
@@ -151,6 +176,7 @@ const truncateButtonText = (text, maxLength = 35) => {
 
 module.exports = {
   formatDate,
+  formatOptionalDate,
   formatStatus,
   formatTaskSummary,
   formatTaskList,
